@@ -122,7 +122,7 @@ where
         let cursor_pos = ui
             .ctx()
             .input(|i| i.pointer.hover_pos().unwrap_or(Pos2::ZERO));
-        let mut cursor_in_editor = resp.hovered();
+        let mut cursor_in_editor = resp.contains_pointer();
         let mut cursor_in_finder = false;
 
         // Gets filled with the node metrics as they are drawn
@@ -154,7 +154,7 @@ where
             click_on_background = true;
         } else if r.drag_started() {
             drag_started_on_background = true;
-        } else if r.drag_released() {
+        } else if r.drag_stopped() {
             drag_released_on_background = true;
         }
 
@@ -182,7 +182,7 @@ where
         /* Draw the node finder, if open */
         let mut should_close_node_finder = false;
         if let Some(ref mut node_finder) = self.node_finder {
-            let mut node_finder_area = Area::new("node_finder").order(Order::Foreground);
+            let mut node_finder_area = Area::new("node_finder".into()).order(Order::Foreground);
             if let Some(pos) = node_finder.position {
                 node_finder_area = node_finder_area.current_pos(pos);
             }
@@ -411,6 +411,7 @@ where
         if mouse.secondary_released() && cursor_in_editor && !cursor_in_finder {
             self.node_finder = Some(NodeFinder::new_at(cursor_pos));
         }
+
         if ui.ctx().input(|i| i.key_pressed(Key::Escape)) {
             self.node_finder = None;
         }
@@ -432,7 +433,7 @@ where
         if mouse.primary_released() || drag_released_on_background {
             self.ongoing_box_selection = None;
         }
-
+        
         GraphResponse {
             node_responses: delayed_responses,
             cursor_in_editor,
@@ -794,6 +795,7 @@ where
         // Draw the background shape.
         // NOTE: This code is a bit more involved than it needs to be because egui
         // does not support drawing rectangles with asymmetrical round corners.
+        // TODO: Now rounding can be asymmetrical :)
 
         let (shape, outline) = {
             let rounding_radius = 4.0;
@@ -810,6 +812,8 @@ where
                     .titlebar_color(ui, self.node_id, self.graph, user_state)
                     .unwrap_or_else(|| background_color.lighten(0.8)),
                 stroke: Stroke::NONE,
+                fill_texture_id: TextureId::Managed(0),
+                uv: Rect::ZERO,
             });
 
             let body_rect = Rect::from_min_size(
@@ -818,9 +822,11 @@ where
             );
             let body = Shape::Rect(RectShape {
                 rect: body_rect,
-                rounding: Rounding::none(),
+                rounding: Rounding::ZERO,
                 fill: background_color,
                 stroke: Stroke::NONE,
+                fill_texture_id: TextureId::Managed(0),
+                uv: Rect::ZERO,
             });
 
             let bottom_body_rect = Rect::from_min_size(
@@ -832,6 +838,8 @@ where
                 rounding,
                 fill: background_color,
                 stroke: Stroke::NONE,
+                fill_texture_id: TextureId::Managed(0),
+                uv: Rect::ZERO,
             });
 
             let node_rect = titlebar_rect.union(body_rect).union(bottom_body_rect);
@@ -841,6 +849,8 @@ where
                     rounding,
                     fill: Color32::WHITE.lighten(0.8),
                     stroke: Stroke::NONE,
+                    fill_texture_id: TextureId::Managed(0),
+                    uv: Rect::ZERO,
                 })
             } else {
                 Shape::Noop
